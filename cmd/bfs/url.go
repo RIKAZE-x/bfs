@@ -68,20 +68,45 @@ func (m URLModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.err = nil
 			m.fetching = true
+			
+			// Validasi URL
+	if !isValidURL(m.input.Value()) {
+		m.fetching = false
+		m.err = errors.New("URL tidak valid, pastikan Anda memasukkan URL produk yang benar")
+		return m, nil
+	}
+
 			return m, func() tea.Msg {
 				item, err := m.c.FetchItemFromURL(m.input.Value())
 				if err != nil {
 					return err
 				}
+				func (c shopee.Client) FetchItemFromURL(url string) (shopee.Item, error) {
+	item, err := c.someInternalFetchMethod(url) // Ganti dengan metode fetch yang sesuai
+	if err != nil {
+		return shopee.Item{}, fmt.Errorf("failed to fetch item: %w", err)
+	}
+
+	// Validasi apakah item memiliki data yang benar
+	if item.ID == "" {
+		return shopee.Item{}, errors.New("item ID kosong, kemungkinan URL tidak valid")
+	}
+
+	return item, nil
+}
+				
 				if !item.IsFlashSale() && !item.HasUpcomingFsale() {
 					return errors.New("tidak ada flash sale untuk item ini")
 				}
 				if !item.HasUpcomingFsale() && item.Stock() == 0 {
-					return errors.New("stok item kosong")
+					return errors.New("stok item kosong, coba lagi nanti")
 				}
 				return fetchItemMsg{item}
 			}
 		}
+		
+	import "log"
+		
 	case error:
 		m.fetching = false
 		m.input.SetValue("")
